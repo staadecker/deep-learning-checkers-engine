@@ -4,7 +4,6 @@ import draughts
 from draughts import *
 from draughts.PDN import PDNReader, _PDNGame
 import numpy as np
-from sklearn.datasets.tests.data.openml import id_1
 
 
 filepath = "/Users/benakkermans/Downloads/CheckersTest.txt"
@@ -13,7 +12,7 @@ filepath = "/Users/benakkermans/Downloads/CheckersTest.txt"
 
 def PDN_parse(filepath):
     """
-    Parse text at given filepath 
+    Parse text at given filepath  
     Pasres a PDN FIle as .txt into games
 
     Parameters
@@ -104,7 +103,13 @@ def get_BoardState(moveslist, game_length=-1):
             
             ## Execute the Update using above info on the move
             board[start_id[0],start_id[1]] = 0
-            board[end_id[0],end_id[1]] = piece
+            ## KING CHECK
+            if piece == 1 and end_id[0] == 7:
+                board[end_id[0],end_id[1]] = 3
+            elif piece == -1 and end_id[0] == 0:
+                board[end_id[0],end_id[1]] = -3
+            else:
+                board[end_id[0],end_id[1]] = piece
             
         ## Capture Move / Jump --> x-number of jumps in the move  
         else:
@@ -126,43 +131,64 @@ def get_BoardState(moveslist, game_length=-1):
             current = start_id
             for target in visited_squares:
                 ## First Check if current/target rows are EVEN or ODD
+                ## A KING off of a jump can only occur in two scenarios -> 
+                ## [Odd-row moving down the board (5->7) BLACK King and Even-row moving up (2->0) WHITE King
+                
                 # EVEN ROW RULES
                 if current[0] % 2 == 0:
                     if (current[0]<target[0] and current[1]>target[1]) or (current[0]>target[0] and current[1]>target[1]):
                         middle_row = (max([current[0],target[0]])) - 1
                         # Remove piece in middle row, starting column
                         board[middle_row,current[1]] = 0
-                        board[target[0],target[1]] = piece
+                        ## KING CHECK (3 conditions: Last Jump, White Piece, Row=0), even row can only be a WHITE KING
+                        if (visited_squares.index(target) == (len(visited_squares) - 1)) and (piece == -1) and (target[0] == 0):
+                             board[target[0],target[1]] = -3
+                        else:
+                            board[target[0],target[1]] = piece
+                            
                         current = target
-                        #print("Type 1")
                     
                     elif (current[0]<target[0] and current[1]<target[1]) or (current[0]>target[0] and current[1]<target[1]):
                         middle_row = (max([current[0],target[0]])) - 1
                         # Remove piece in middle row, target column
                         board[middle_row,target[1]] = 0
-                        board[target[0],target[1]] = piece
+                        ## KING CHECK (3 conditions: Last Jump, White Piece, Row=0), even row can only be a WHITE KING
+                        if (visited_squares.index(target) == (len(visited_squares) - 1)) and (piece == -1) and (target[0] == 0):
+                             board[target[0],target[1]] = -3
+                        else:
+                            board[target[0],target[1]] = piece
+                            
                         current = target
-                        #print("Type 2")
+
                 # ODD ROW RULES
                 else:
                     if (current[0]<target[0] and current[1]>target[1]) or (current[0]>target[0] and current[1]>target[1]):
                         middle_row = (max([current[0],target[0]])) - 1
                         # Remove piece in middle row, starting column
                         board[middle_row,target[1]] = 0
-                        board[target[0],target[1]] = piece
+                        ## KING CHECK (3 conditions: Last Jump, Black Piece, Row=7), odd row can only be a BLACK KING
+                        if (visited_squares.index(target) == (len(visited_squares) - 1)) and (piece == 1) and (target[0] == 7):
+                             board[target[0],target[1]] = 3
+                        else:
+                            board[target[0],target[1]] = piece
+                            
                         current = target
-                        #print("Type 1")
+
                     
                     elif (current[0]<target[0] and current[1]<target[1]) or (current[0]>target[0] and current[1]<target[1]):
                         middle_row = (max([current[0],target[0]])) - 1
                         # Remove piece in middle row, target column
                         board[middle_row,current[1]] = 0
-                        board[target[0],target[1]] = piece
+                        ## KING CHECK (3 conditions: Last Jump, Black Piece, Row=7), odd row can only be a BLACK KING
+                        if (visited_squares.index(target) == (len(visited_squares) - 1)) and (piece == 1) and (target[0] == 7):
+                             board[target[0],target[1]] = 3
+                        else:
+                            board[target[0],target[1]] = piece
+                            
                         current = target
-                        #print("Type 2") 
-            
-        #print("Move was: ",strmove)
-        #print(board)
+        
+        print("Move was: ",strmove)
+        print(board)
         
     return board, moveslist
             
