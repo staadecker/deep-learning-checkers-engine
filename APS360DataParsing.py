@@ -89,10 +89,32 @@ def get_BoardState(moveslist, game_length=-1):
                       [-1,-1,-1,-1],
                       [-1,-1,-1,-1]])
     
+    cols = ['num_moves','board_state','next_move']
+    #master_list = pd.DataFrame(columns=cols)
+    master_list = []
+    num_moves = 0
+    ## Flip the board if it is Black's move (Board currently set so player-to-move is at the bottom)
+    flip_flag = True
+    
     ## Next define the changes made to the board by each type of move
     for strmove in moveslist:
+        move_index = moveslist.index(strmove)
+        ## Output with next move
+        # Set board, flip if flip_flag
+        c_board = board.copy()
+        if flip_flag:
+            #for i in range(len(c_board)):
+                #c_board[i] = c_board[i].reverse()
+            c_board = np.flip(c_board, axis=0)
+            c_board = np.flip(c_board, axis=1)
+                
+        if move_index == (len(moveslist)-1):
+            master_list.append((num_moves,c_board,"Game Over"))
+        else:
+            #print(board)
+            master_list.append((num_moves,c_board,moveslist[move_index]))
+            
         # Breakdown the move first
-        
         ## Basic Move
         if re.search("-",strmove) != None:
             ## Simple as we know there are only two moves, no capture so straight update 
@@ -186,11 +208,21 @@ def get_BoardState(moveslist, game_length=-1):
                             board[target[0],target[1]] = piece
                             
                         current = target
+        num_moves += 1
+        ## Calculate whos move is next for the flip_flag
+        if num_moves % 2 == 0:
+            # Black's Turn
+            flip_flag = True 
+        else:
+            flip_flag = False
         
-        print("Move was: ",strmove)
-        print(board)
-        
-    return board, moveslist
+        #print("Move was: ",strmove)
+        #print(board)
+
+    return master_list, moveslist
             
 test_data = PDN_parse(filepath)
-print(get_BoardState(test_data[1]))
+df, moves = get_BoardState(test_data[1])
+
+print(df)
+print(len(moves))
