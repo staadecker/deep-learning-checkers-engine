@@ -37,7 +37,7 @@ def PDN_parse(filepath):
         
         ## MOVE LIST FOR EACH GAME
         movelist = []
-        
+        game_result = ''
         
         lines = file.readlines()
         
@@ -55,8 +55,15 @@ def PDN_parse(filepath):
 
                     # Check if ending condition
                     if move in terminate_list:
+                        if move == '1-0':
+                            game_result = 1
+                        elif move == '0-1':
+                            game_result = -1
+                        else:
+                            game_result = 0
+                            
                         movesflag = False
-                        data.append(movelist)
+                        data.append((movelist,game_result))
                         movelist = []
                         
                     elif re.search("\.",move) == None:
@@ -64,10 +71,15 @@ def PDN_parse(filepath):
                         
     return data
 
-def get_BoardState(moveslist, game_length=-1):
+def get_BoardState(moveslist, game_result=0):
     ## Pieces denoted in the board as follows
     ## -3: White K, -1: White Piece, 0: No Piece, 1: Black Piece, 3: Black King
     ## Function currently starts with Black at Square 1 (Index 0)
+    ## Game result denoted as follows: 
+        # 0 = Draw
+        # 1 = Player-to-move Wins
+        #-1 = Opposing Player Wins
+    ## The game result attached to the output will flip considering who is at move(flip flag integration)
     ###############################################################################
     # Index to Move Dict:
     index_dict = {1:[0,0],2:[0,1],3:[0,2],4:[0,3],
@@ -98,22 +110,6 @@ def get_BoardState(moveslist, game_length=-1):
     
     ## Next define the changes made to the board by each type of move
     for strmove in moveslist:
-        move_index = moveslist.index(strmove)
-        ## Output with next move
-        # Set board, flip if flip_flag
-        c_board = board.copy()
-        if flip_flag:
-            #for i in range(len(c_board)):
-                #c_board[i] = c_board[i].reverse()
-            c_board = np.flip(c_board, axis=0)
-            c_board = np.flip(c_board, axis=1)
-                
-        if move_index == (len(moveslist)-1):
-            master_list.append((num_moves,c_board,"Game Over"))
-        else:
-            #print(board)
-            master_list.append((num_moves,c_board,moveslist[move_index]))
-            
         # Breakdown the move first
         ## Basic Move
         if re.search("-",strmove) != None:
@@ -209,6 +205,24 @@ def get_BoardState(moveslist, game_length=-1):
                             
                         current = target
         num_moves += 1
+        
+        ## Output with next move
+        # Set board, flip if flip_flag
+        c_board = board.copy()
+        ## Black to move, game result fine
+        if flip_flag:
+            #for i in range(len(c_board)):
+                #c_board[i] = c_board[i].reverse()
+            c_board = np.flip(c_board, axis=0)
+            c_board = np.flip(c_board, axis=1)
+            
+        ## White to move, flip game result and pieces (white is standard negative, we want white positive)
+        else:
+            c_board *= -1
+            game_result *= -1
+            
+        master_list.append((num_moves,c_board,game_result))
+            
         ## Calculate whos move is next for the flip_flag
         if num_moves % 2 == 0:
             # Black's Turn
@@ -218,11 +232,11 @@ def get_BoardState(moveslist, game_length=-1):
         
         #print("Move was: ",strmove)
         #print(board)
-
+        
     return master_list, moveslist
             
 test_data = PDN_parse(filepath)
-df, moves = get_BoardState(test_data[1])
+df, moves = get_BoardState(test_data[0][0],test_data[0][1])
 
 print(df)
 print(len(moves))
