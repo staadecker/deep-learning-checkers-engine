@@ -48,51 +48,64 @@ def run_engine():
 
 def test_function():
     game = Game(variant="english", fen="startpos")
-    print(game.get_board())
     print(game.whose_turn())
     moves, captures = game.legal_moves()
-    print(moves, captures)    
-    game.move([22,17])
+    print(moves, captures, game.get_possible_moves())    
+    game.move([22,18])
     moves, captures = game.legal_moves()
     print(moves, captures)    
-    game.move([9,14])
+    game.move([12,16])
     moves, captures = game.legal_moves()
     print(moves, captures) 
-    
+    game.move([24,20])
+    moves, captures = game.legal_moves()
+    print(moves, captures) 
+    game.move([10,15]) 
+    moves, captures = game.legal_moves()
+    print(moves, captures)     
+    game.move([21,17])  
+    moves, captures = game.legal_moves()
+    print(moves, captures)     
+    game.move([15,22]) 
+    moves, captures = game.legal_moves()
+    print(moves, captures)     
+    game.move([25,18])
+    moves, captures = game.legal_moves()
+    print(moves, captures)     
+    game.move([9,14]) 
+    moves, captures = game.legal_moves()
+    print(moves, captures)     
+    game.move([17,10])    
+    moves, captures = game.legal_moves()
+    print(moves, captures)         
+    game.move([6,15])   
+    moves, captures = game.legal_moves()
+    print(moves, captures)         
+ 
 
-def get_BoardState(moveslist, board, index_dict, game_length=-1):
-    cols = ['num_moves','board_state','next_move']
-    #master_list = pd.DataFrame(columns=cols)
+
+def get_BoardState(moveslist, captureslist, board, index_dict, game_length=-1):
     master_list = []
     num_moves = 0
-    ## Flip the board if it is Black's move (Board currently set so player-to-move is at the bottom)
-    #flip_flag = True
     
-    ## Next define the changes made to the board by each type of move
-    for strmove in moveslist:
-        move_index = moveslist.index(strmove)
-        ## Output with next move
-        # Set board, flip if flip_flag
-        #c_board = board.copy()
-        #if flip_flag:
-            #for i in range(len(c_board)):
-                #c_board[i] = c_board[i].reverse()
-            #c_board = np.flip(c_board, axis=0)
-            #c_board = np.flip(c_board, axis=1)
-                
-        if move_index == (len(moveslist)-1):
-            master_list.append((num_moves,c_board,"Game Over"))
-        else:
-            #print(board)
-            master_list.append((num_moves,c_board,moveslist[move_index]))
+    capture_move = False
+    multi_capture_move = False
+    
+    for captures in captureslist:
+        if captures != None and len(captures) == 1:
+            capture_move = True
+        if captures != None and len(captures) >= 2:
+            multi_capture_move = True
+    
+    for move in moveslist:
+        move_index = moveslist.index(move)
             
         # Breakdown the move first
         ## Basic Move
-        if re.search("-",strmove) != None:
+        if capture_move == False and multi_capture_move == False:
             ## Simple as we know there are only two moves, no capture so straight update 
-            move = strmove.split("-")
-            start_id = index_dict[int(move[0])]
-            end_id = index_dict[int(move[1])]
+            start_id = index_dict[move[0][0][0]]
+            end_id = index_dict[move[0][0][1]]
             piece = board[start_id[0],start_id[1]]
             
             ## Execute the Update using above info on the move
@@ -107,7 +120,7 @@ def get_BoardState(moveslist, board, index_dict, game_length=-1):
             
         ## Capture Move / Jump --> x-number of jumps in the move  
         else:
-            move = strmove.split("x")
+            move = move.split("x")
             x = len(move)
             start_id = index_dict[int(move[0])]
             
@@ -188,8 +201,9 @@ def minimax(board, depth, max_player, game):
     
     if max_player:
         maxEval = float('-inf')
-        best_move = None     
-        for move in game.legal_moves():
+        best_move = None 
+        moves, captures = game.legal_moves()
+        for move in moves:
             evaluation = minimax(get_BoardState(move, temp_board, index_dict, game_length=-1), depth - 1, False, game)[0]
             maxEval = max(maxEval, evaluation)
             if maxEval == evaluation:
@@ -199,29 +213,23 @@ def minimax(board, depth, max_player, game):
     else:
         minEval = float('inf')
         best_move = None     
-        for move in get_all_possible_opponent_moves(temp_board, move, game): ##gotta figure this part out
+        for boards in get_future_board_states(temp_board, index_dict, game): 
             evaluation = minimax(get_BoardState(move, temp_board, index_dict, game_length=-1), depth - 1, True, game)[0]
-            minEval = max(minEval, evaluation)
+            minEval = min(minEval, evaluation)
             if minEval == evaluation:
                 best_move = move
         return minEval, best_move        
 
 
-def simulate_move(move, board, game, skip):
-    game.move(move[0], move[1])
-    if skip:
-        get_BoardState(moves, board, index_dict, game_length=-1)
-    return board
-
-
-def get_all_possible_opponent_moves(board, move, game):
-    moves = []
-    valid_moves = game.legal_moves()
-    for move, skip in valid_moves.items():
+def get_future_board_states(board, index_dict, game):
+    future_boards = []
+    valid_moves, captures = game.legal_moves()
+    for moves in valid_moves:
         temp_board = deepcopy(board)
-        new_board = simulate_move(move, temp_board, game, skip)
-        moves.append(new_board)
-    return moves
+        possible_future_board = get_BoardState(moves, temp_board, index_dict, game_length=-1)
+        future_boards.append(possible_future_board)
+    future_boards_numpy = np.array(future_boards)
+    return (future_boards_numpy)
 
 
 def evaluate(board):
@@ -240,4 +248,5 @@ def evaluate(board):
             if value == 3:
                 AI_kings += 1                
     return AI_pieces - player_pieces + (AI_kings * 0.5 - player_kings* 0.5)
+
 
