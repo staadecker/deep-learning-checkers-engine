@@ -4,9 +4,17 @@ import draughts
 from draughts import *
 from draughts.PDN import PDNReader, _PDNGame
 import numpy as np
+import torch
+from torch import Tensor
+import torch.nn as nn
+import torch.nn.functional as F
+import torchvision 
+import torch.utils.data
+from torch.utils.data import *
+import pickle
 
 
-filepath = "/Users/benakkermans/Downloads/CheckersTest.txt"
+filepath = "/Users/benakkermans/Downloads/CheckersDB.txt"
 #reader = PDNReader(filepath)
 #print(reader.games[0].moves)
 
@@ -34,7 +42,7 @@ def PDN_parse(filepath):
     with open(filepath, 'r') as file:
         # Flags to indicate where in the file structure we are
         movesflag = False
-        
+        validflag = True
         ## MOVE LIST FOR EACH GAME
         movelist = []
         game_result = ''
@@ -52,6 +60,9 @@ def PDN_parse(filepath):
                 
                 for move in moves:
                     move = move.strip("\n")
+                    ## COmment in game, just scrap as there is very few
+                    if '{' in move:
+                        validflag = False
 
                     # Check if ending condition
                     if move in terminate_list:
@@ -63,8 +74,10 @@ def PDN_parse(filepath):
                             game_result = 0
                             
                         movesflag = False
-                        data.append((movelist,game_result))
+                        if validflag:
+                            data.append((movelist,game_result))
                         movelist = []
+                        validflag = True
                         
                     elif re.search("\.",move) == None:
                         movelist.append(move)
@@ -106,7 +119,7 @@ def get_BoardState(moveslist, game_result=0):
     master_list = []
     num_moves = 0
     ## Flip the board if it is Black's move (Board currently set so player-to-move is at the bottom)
-    flip_flag = True
+    flip_flag = False
     
     ## Next define the changes made to the board by each type of move
     for strmove in moveslist:
@@ -137,8 +150,8 @@ def get_BoardState(moveslist, game_result=0):
             
             visited_squares = []
             for i in range(x-1):
-                id = index_dict[int(move[i+1])]
-                visited_squares.append(id)
+                idx = index_dict[int(move[i+1])]
+                visited_squares.append(idx)
             
             #end_id = visited_squares[-1]
             piece = board[start_id[0],start_id[1]]
@@ -205,38 +218,76 @@ def get_BoardState(moveslist, game_result=0):
                             
                         current = target
         num_moves += 1
-        
+        ## Calculate whos move is next for the flip_flag
+        if num_moves % 2 == 0:
+            # Black's Turn
+            flip_flag = True
+        else:
+            flip_flag = False
+            
         ## Output with next move
         # Set board, flip if flip_flag
         c_board = board.copy()
+        gc = game_result
         ## Black to move, game result fine
         if flip_flag:
-            #for i in range(len(c_board)):
-                #c_board[i] = c_board[i].reverse()
             c_board = np.flip(c_board, axis=0)
             c_board = np.flip(c_board, axis=1)
+            gc = game_result
             
         ## White to move, flip game result and pieces (white is standard negative, we want white positive)
         else:
             c_board *= -1
-            game_result *= -1
+            gc = game_result*-1
             
-        master_list.append((num_moves,c_board,game_result))
-            
-        ## Calculate whos move is next for the flip_flag
-        if num_moves % 2 == 0:
-            # Black's Turn
-            flip_flag = True 
-        else:
-            flip_flag = False
-        
+        master_list.append((c_board,gc))
+         
         #print("Move was: ",strmove)
         #print(board)
         
     return master_list, moveslist
             
-test_data = PDN_parse(filepath)
-df, moves = get_BoardState(test_data[0][0],test_data[0][1])
 
-print(df)
-print(len(moves))
+def add_game_data(df,moves,games_master,labels_master):
+    #game = np.array([])
+    labels = []
+    for z in df:
+        board = z[0]
+        label = z[1]
+        #print(board)
+        #b_tensor = torch.from_numpy(board.copy())
+        #b_tensor = torch.flatten(b_tensor)
+        board = board.flatten()
+        #games_master = torch.cat((games_master,b_tensor),1)
+        games_master = np.vstack([games_master,board])
+        labels.append(label)
+        #print(games_master)
+        #print('\n')
+    labels_master.append(labels)
+    
+    return games_master,labels_master   
+        
+        
+#games_master = torch.Tensor()
+games_master = np.empty((0,32))
+labels_master = []
+data = PDN_parse(filepath)
+
+i = 0
+for game in data:
+    i += 1
+    print(i)
+    df, moves = get_BoardState(game[0],game[1])
+    games_master,labels_master = add_game_data(df,moves,games_master,labels_master)
+        
+    
+games_master = torch.Tensor(games_master)
+
+gamefile = open('boardDB','wb')
+pickle.dump(games_master,gamefile)
+gamefile.close()
+
+labelfile = open('labelDB','wb')
+pickle.dump(labels_master,labelfile)
+labelfile.close()
+    
