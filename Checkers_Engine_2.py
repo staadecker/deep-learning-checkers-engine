@@ -64,7 +64,7 @@ def create_board_tensor(game):
             board_string_list[i] = 0
         elif board_string_list[i] == 'w':
             board_string_list[i] = 1
-        elif board_string_list[i] == 'w':
+        elif board_string_list[i] == 'W':
             board_string_list[i] = 3              
     return torch.Tensor(board_string_list)
 
@@ -127,9 +127,9 @@ def evaluate(board):
     player_kings = 0
     AI_kings = 0    
     for value in board:
-        if value == -1:
-            player_pieces += 1
         if value == 1:
+            player_pieces += 1
+        if value == -1:
             AI_pieces += 1
         if value == -3:
             player_kings += 1
