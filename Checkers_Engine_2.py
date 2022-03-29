@@ -6,7 +6,7 @@ from collections import OrderedDict
 from draughts import Game, Move, WHITE, BLACK
 
 
-game = Game(variant="english", fen="startpos")
+game_object = Game(variant="english", fen="startpos")
 
 
 def run_engine():
@@ -35,6 +35,7 @@ def test_function(game):
     '''
     game.move(minimax_[2])
     game.move([24,20])
+    print(game.get_moves())
     minimax_ = minimax(create_board_tensor(game), 4, True, game)
     print(minimax_)
     game.move(minimax_[2])
@@ -77,48 +78,47 @@ def minimax(board, depth, max_player, game):
         maxEval = float('-inf')
         best_board = None 
         best_move = None
-        future_boards, possible_moves = get_future_board_states(game)
-        index = 0
-        for possible_board in future_boards:
-            evaluation = minimax(possible_board, depth - 1, False, game)[0]
+        future_boards, possible_moves, possible_games = get_future_board_states(game, False)
+        for i in range(0,len(future_boards)):
+            evaluation = minimax(future_boards[i], depth - 1, False, possible_games[i])[0]
             maxEval = max(maxEval, evaluation)
             if maxEval == evaluation:
-                best_board = possible_board
-                best_move = possible_moves[index]
-            index += 1
+                best_board = future_boards[i]
+                best_move = possible_moves[i]
             
         return maxEval, best_board, best_move         
             
     else:
-        temp_game = game.switch_turn()
         minEval = float('inf')
         best_board = None
         best_move = None
-        future_boards, possible_moves = get_future_board_states(temp_game)
-        index = 0
-        for possible_board in future_boards: 
-            evaluation = minimax(possible_board, depth - 1, True, game)[0]
+        future_boards, possible_moves, possible_games = get_future_board_states(game, True)
+        for i in range(0,len(future_boards)): 
+            evaluation = minimax(future_boards[i], depth - 1, True, possible_games[i])[0]
             minEval = min(minEval, evaluation)
             if minEval == evaluation:
-                best_board = possible_board
-                best_move = possible_moves[index]
-            index += 1
+                best_board = future_boards[i]
+                best_move = possible_moves[i]
             
         return minEval, best_board, best_move   
     
 
-def get_future_board_states(game):
+def get_future_board_states(game, switch_turn):
+    if switch_turn:
+        game = game.switch_turn()
     possible_moves = []
     future_boards = []
+    possible_games = []
     board = create_board_tensor(game)
     valid_moves, captures = game.get_moves()
     for moves in valid_moves:
         temp_game = game.copy()
-        temp_game.move(moves[0])
+        temp_game = temp_game.move(moves[0])
         possible_future_board = tensor_to_board(create_board_tensor(temp_game))
         future_boards.append(possible_future_board)
         possible_moves.append(moves[0])
-    return torch.Tensor(future_boards), possible_moves
+        possible_games.append(temp_game)
+    return torch.Tensor(future_boards), possible_moves, possible_games
 
 
 def evaluate(board):
