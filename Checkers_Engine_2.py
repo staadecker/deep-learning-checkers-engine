@@ -6,9 +6,6 @@ from collections import OrderedDict
 from draughts import Game, Move, WHITE, BLACK
 
 
-game_object = Game(variant="english", fen="startpos")
-
-
 def run_engine():
     run = True
     game = Game(variant="english", fen="startpos")
@@ -28,28 +25,21 @@ def run_engine():
 
 
 def test_function(game):
-    game.move([23,19])
-    print(game.get_moves())
-    minimax_ = minimax(create_board_tensor(game), 4, True, game)
+    game = game.move(game.get_moves()[0][0][0])
+    minimax_ = minimax(create_board_tensor(game), 3, True, game)
     print(minimax_)
-    '''
-    game.move(minimax_[2])
-    game.move([24,20])
-    print(game.get_moves())
-    minimax_ = minimax(create_board_tensor(game), 4, True, game)
+    game = game.move(minimax_[2][0])
+    game = game.move(game.get_moves()[0][0][0])
+    minimax_ = minimax(create_board_tensor(game), 3, True, game)
     print(minimax_)
-    game.move(minimax_[2])
-    print(game.get_possible_moves())
-    game.move([20,16])
-    minimax_ = minimax(create_board_tensor(game), 4, True, game)
+    game = game.move(minimax_[2][0])
+    game = game.move(game.get_moves()[0][0][0])
+    minimax_ = minimax(create_board_tensor(game), 3, True, game)
     print(minimax_)
-    game.move(minimax_[2])  
-    #moves = game.get_possible_moves()
-    #game.move(moves[2]) 
-    #minimax_ = minimax(create_board_tensor(game), 4, True, game)
-    #print(minimax_)
-    #game.move(minimax_[2])      
-    '''
+    game = game.move(minimax_[2][0])
+    game = game.move(game.get_moves()[0][0][0])    
+    minimax_ = minimax(create_board_tensor(game), 3, True, game)
+    print(minimax_)     
     
 
 def create_board_tensor(game):
@@ -72,36 +62,60 @@ def create_board_tensor(game):
 
 def minimax(board, depth, max_player, game):
     if depth == 0 or game.is_over() == True or game.is_draw() == True:
-        return evaluate(board), board
+        return evaluate(board), torch.Tensor(board)
 
     if max_player:
         maxEval = float('-inf')
         best_board = None 
         best_move = None
-        future_boards, possible_moves, possible_games = get_future_board_states(game, False)
-        for i in range(0,len(future_boards)):
-            evaluation = minimax(future_boards[i], depth - 1, False, possible_games[i])[0]
+        for games in get_future_game_states(game, False):
+            evaluation = minimax(create_board_tensor(games), depth - 1, False, games)[0]
             maxEval = max(maxEval, evaluation)
             if maxEval == evaluation:
-                best_board = future_boards[i]
-                best_move = possible_moves[i]
+                best_board = create_board_tensor(games)
+                best_move = get_move_from_board(game, tensor_to_board(best_board))
             
-        return maxEval, best_board, best_move         
+        return maxEval, best_board, best_move     
             
     else:
         minEval = float('inf')
         best_board = None
         best_move = None
-        future_boards, possible_moves, possible_games = get_future_board_states(game, True)
-        for i in range(0,len(future_boards)): 
-            evaluation = minimax(future_boards[i], depth - 1, True, possible_games[i])[0]
+        for games in get_future_game_states(game, True):
+            evaluation = minimax(create_board_tensor(games), depth - 1, True, games)[0]
             minEval = min(minEval, evaluation)
             if minEval == evaluation:
-                best_board = future_boards[i]
-                best_move = possible_moves[i]
+                best_board = create_board_tensor(games)
+                best_move = get_move_from_board(game, tensor_to_board(best_board))
             
-        return minEval, best_board, best_move   
-    
+        return minEval, best_board, best_move  
+ 
+
+def get_move_from_board(game, board):
+    valid_moves, captures = game.get_moves()
+    for moves in valid_moves:
+        temp_game = game.copy()
+        temp_game = temp_game.move(moves[0])
+        #if len(moves) > 1:
+            #temp_game = temp_game.move(moves[1])
+        possible_board = tensor_to_board(create_board_tensor(temp_game))
+        if possible_board == board:
+            return moves
+ 
+ 
+def get_future_game_states(game, switch_turn):
+    if switch_turn:
+        game = game.switch_turn()
+    possible_games = []
+    valid_moves, captures = game.get_moves()
+    for moves in valid_moves:
+        temp_game = game.copy()
+        temp_game = temp_game.move(moves[0])
+        #if len(moves) > 1:
+            #temp_game = temp_game.move(moves[1])
+        possible_games.append(temp_game)
+    return possible_games   
+
 
 def get_future_board_states(game, switch_turn):
     if switch_turn:
@@ -118,7 +132,7 @@ def get_future_board_states(game, switch_turn):
         future_boards.append(possible_future_board)
         possible_moves.append(moves[0])
         possible_games.append(temp_game)
-    return torch.Tensor(future_boards), possible_moves, possible_games
+    return future_boards, possible_moves, possible_games
 
 
 def evaluate(board):
@@ -135,7 +149,7 @@ def evaluate(board):
             player_kings += 1
         if value == 3:
             AI_kings += 1                
-    return AI_pieces - player_pieces + (AI_kings * 0.5 - player_kings* 0.5)
+    return (AI_pieces - player_pieces + (AI_kings * 0.5 - player_kings* 0.5))
 
 
 def convert_multi_move(moveslist):
@@ -157,3 +171,11 @@ def board_to_tensor(board):
     board_tensor = board_tensor.flatten()
     return board_tensor
 
+
+game_object = Game(variant="english", fen="startpos")
+#game_object.move([23,18])
+#board = create_board_tensor(game_object)
+
+
+test_function(game_object)
+#print(minimax(board, 4, True, game_object))
